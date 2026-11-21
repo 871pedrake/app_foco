@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Camera, Check, Trash2, Upload, User } from 'lucide-react';
+import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
+import { Camera, Check, Trash2, Upload, User, Users } from 'lucide-react';
 import type { UserProfile } from '../types/foco';
 import { getProfileInitials, isSafeRasterImageDataUrl } from '../utils/focoStorage';
 import { formatXp, getLevelProgress } from '../utils/xp';
+import { auth } from '../cloud/firebase';
 import { AccountSection } from '../cloud/AccountSection';
+import { FriendsTab, useFriendsData } from './FriendsTab';
 
 interface ProfileViewProps {
   profile: UserProfile;
@@ -13,6 +16,7 @@ interface ProfileViewProps {
   journalDaysCount: number;
   vicesCount: number;
   onSaveProfile: (nextProfile: UserProfile, toastMessage?: string) => void;
+  onNotify?: (message: string) => void;
 }
 
 const AVATAR_SIZE = 320;
@@ -76,7 +80,10 @@ export function ProfileView({
   journalDaysCount,
   vicesCount,
   onSaveProfile,
+  onNotify,
 }: ProfileViewProps) {
+  const [subTab, setSubTab] = useState<'profile' | 'friends'>('profile');
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(auth.currentUser);
   const [nameDraft, setNameDraft] = useState(profile.name);
   const [photoDraft, setPhotoDraft] = useState<string | null>(profile.photoDataUrl);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -85,6 +92,10 @@ export function ProfileView({
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => onAuthStateChanged(auth, setCurrentUser), []);
+
+  const friendsData = useFriendsData(currentUser?.uid ?? null);
 
   useEffect(() => {
     setNameDraft(profile.name);
@@ -164,24 +175,91 @@ export function ProfileView({
     );
   }
 
+  const pendingIncomingCount = friendsData.incomingRequests.length;
+
   return (
     <main className="flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <div className="mb-6">
-        <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-          Identidade e progresso pessoal
-        </p>
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-0.5">
-          Seu Perfil
-        </h2>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+            Identidade, amigos e progresso pessoal
+          </p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-0.5">
+            {subTab === 'profile' ? 'Seu Perfil' : 'Amigos'}
+          </h2>
+        </div>
+
+        {/* Sub-tab Switcher: Meu Perfil | Amigos */}
+        <div
+          role="tablist"
+          aria-label="Seções do perfil"
+          className="inline-flex items-center p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/70"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={subTab === 'profile'}
+            onClick={() => setSubTab('profile')}
+            className={`relative inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              subTab === 'profile'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Meu Perfil</span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={subTab === 'friends'}
+            onClick={() => setSubTab('friends')}
+            className={`relative inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              subTab === 'friends'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Amigos</span>
+            {currentUser && friendsData.onlineCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold tabular-nums">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                {friendsData.onlineCount}
+              </span>
+            )}
+            {currentUser && pendingIncomingCount > 0 && (
+              <span
+                title={`${pendingIncomingCount} pedido(s) pendente(s)`}
+                className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold tabular-nums"
+              >
+                {pendingIncomingCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Live Profile Preview */}
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.28, ease: 'easeOut' }}
-          aria-label="Pré-visualização do perfil"
+      {subTab === 'friends' ? (
+        <FriendsTab
+          currentUser={currentUser}
+          myDisplayName={profile.name}
+          myPhotoDataUrl={profile.photoDataUrl}
+          myTotalXp={totalXp}
+          friendsData={friendsData}
+          onGoToAccountSetup={() => setSubTab('profile')}
+          onNotify={onNotify}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left: Live Profile Preview */}
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              aria-label="Pré-visualização do perfil"
           className="lg:col-span-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs p-6 space-y-6"
         >
           <div className="flex flex-col items-center text-center space-y-4">
@@ -415,6 +493,8 @@ export function ProfileView({
       </div>
 
       <AccountSection />
+        </>
+      )}
     </main>
   );
 }

@@ -20,12 +20,148 @@
         }
       },
       "required": ["data", "clientUpdatedAt", "serverUpdatedAt"]
+    },
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Non-PII social snapshot of a user visible only to the owner and linked friends.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the profile owner."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Public display name shown to friends (1 to 60 chars)."
+        },
+        "photoDataUrl": {
+          "type": "string",
+          "description": "Empty string, HTTPS avatar URL, or safe raster base64 image data URI."
+        },
+        "totalXp": {
+          "type": "number",
+          "description": "Total XP accumulated by the user."
+        },
+        "level": {
+          "type": "number",
+          "description": "Current Foco level (1 to 15)."
+        },
+        "levelTitle": {
+          "type": "string",
+          "description": "Title corresponding to the user's current level."
+        },
+        "friendCode": {
+          "type": "string",
+          "description": "Deterministic alphanumeric friend code shared manually to connect."
+        },
+        "isOnline": {
+          "type": "boolean",
+          "description": "Whether the user session is currently active."
+        },
+        "lastSeenAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest heartbeat or disconnect."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest profile snapshot update."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "photoDataUrl",
+        "totalXp",
+        "level",
+        "levelTitle",
+        "friendCode",
+        "isOnline",
+        "lastSeenAt",
+        "updatedAt"
+      ]
+    },
+    "FriendCode": {
+      "title": "FriendCode",
+      "description": "Exact-lookup index mapping a shareable friend code to a user's UID and display name.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID owning this friend code."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name shown when resolving the code."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of latest update."
+        }
+      },
+      "required": ["uid", "displayName", "updatedAt"]
+    },
+    "Friendship": {
+      "title": "Friendship",
+      "description": "Bidirectional friend connection or pending invite keyed by sorted pairId.",
+      "type": "object",
+      "properties": {
+        "users": {
+          "type": "array",
+          "description": "Sorted 2-element array [uidA, uidB] participating in this friendship."
+        },
+        "requesterUid": {
+          "type": "string",
+          "description": "UID of the user who initiated the friend request."
+        },
+        "recipientUid": {
+          "type": "string",
+          "description": "UID of the user who received the friend request."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "accepted"],
+          "description": "Current friendship state."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the request was sent."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest status change."
+        }
+      },
+      "required": [
+        "users",
+        "requesterUid",
+        "recipientUid",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserBackup" },
       "description": "Per-user Foco sync snapshot strictly owned by {userId}."
+    },
+    "/publicProfiles/{userId}": {
+      "schema": { "$ref": "#/entities/PublicProfile" },
+      "description": "Non-PII profile, XP level, and online presence readable by the owner and friends."
+    },
+    "/friendCodes/{code}": {
+      "schema": { "$ref": "#/entities/FriendCode" },
+      "description": "Exact-get lookup from friend code to user UID (listing disabled)."
+    },
+    "/friendships/{pairId}": {
+      "schema": { "$ref": "#/entities/Friendship" },
+      "description": "Friend connections and pending requests accessible only to pair participants."
     }
   }
 }

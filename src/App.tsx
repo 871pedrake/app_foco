@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
+import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { AmbientAudioEngine } from './audio/ambientAudioEngine';
+import { auth } from './cloud/firebase';
+import {
+  PRESENCE_HEARTBEAT_MS,
+  markUserOffline,
+  publishPublicProfileSnapshot,
+} from './cloud/friends';
 import { Header } from './components/Header';
 import { ImpulseHistoryView } from './components/ImpulseHistoryView';
 import { ImpulseModal } from './components/ImpulseModal';
 import { JournalView } from './components/JournalView';
 import { LevelsView } from './components/LevelsView';
+import { OfflineIndicator } from './components/PWAInstallButton';
 import { ProfileView } from './components/ProfileView';
 import { TasksView } from './components/TasksView';
 import { Toast } from './components/Toast';
@@ -91,6 +99,9 @@ export default function App() {
   const [impulseModalOpen, setImpulseModalOpen] = useState(false);
   const [profile, setProfile] = useState<UserProfile>(initialStateRef.current.profile);
   const [activeTimer, setActiveTimer] = useState<ActiveTaskTimer | null>(null);
+  const [cloudUser, setCloudUser] = useState<FirebaseUser | null>(() => auth.currentUser);
+
+  useEffect(() => onAuthStateChanged(auth, setCloudUser), []);
 
   // Refs mirror latest state so midnight rollover & timer completion evaluate synchronously & accurately
   const latestStateRef = useRef({
@@ -124,6 +135,7 @@ export default function App() {
   const [xpNotice, setXpNotice] = useState<NavbarXpNotification | null>(null);
   const xpNoticeSeqRef = useRef(0);
   const xpNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const impulseOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = useCallback((message: string) => {
     setToastMsg(message);
@@ -170,6 +182,9 @@ export default function App() {
       if (xpNoticeTimerRef.current) {
         clearTimeout(xpNoticeTimerRef.current);
       }
+      if (impulseOpenTimerRef.current) {
+        clearTimeout(impulseOpenTimerRef.current);
+      }
     };
   }, []);
 
@@ -182,6 +197,79 @@ export default function App() {
       // Ignore storage errors
     }
   }, [isDark]);
+
+  // Publica perfil público, XP/nível e presença online em tempo real para amigos
+  const presencePayloadRef = useRef({
+    uid: cloudUser?.uid ?? '',
+    displayName: profile.name,
+    fallbackName: cloudUser?.displayName ?? cloudUser?.email?.split('@')[0] ?? 'Usuário Foco',
+    photoDataUrl: profile.photoDataUrl,
+    fallbackPhotoUrl: cloudUser?.photoURL ?? '',
+    totalXp,
+  });
+  presencePayloadRef.current = {
+    uid: cloudUser?.uid ?? '',
+    displayName: profile.name,
+    fallbackName: cloudUser?.displayName ?? cloudUser?.email?.split('@')[0] ?? 'Usuário Foco',
+    photoDataUrl: profile.photoDataUrl,
+    fallbackPhotoUrl: cloudUser?.photoURL ?? '',
+    totalXp,
+  };
+
+  useEffect(() => {
+    const uid = cloudUser?.uid;
+    if (!uid) return;
+
+    const publishOnlineIfVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      const snap = presencePayloadRef.current;
+      if (!snap.uid) return;
+      void publishPublicProfileSnapshot({
+        ...snap,
+        isOnline: true,
+      }).catch(() => undefined);
+    };
+
+    const debounceTimer = setTimeout(publishOnlineIfVisible, 350);
+    return () => clearTimeout(debounceTimer);
+  }, [cloudUser?.uid, profile.name, profile.photoDataUrl, totalXp]);
+
+  useEffect(() => {
+    const uid = cloudUser?.uid;
+    if (!uid) return;
+
+    const publishOnline = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      const snap = presencePayloadRef.current;
+      if (!snap.uid) return;
+      void publishPublicProfileSnapshot({
+        ...snap,
+        isOnline: true,
+      }).catch(() => undefined);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        void markUserOffline(uid).catch(() => undefined);
+      } else {
+        publishOnline();
+      }
+    };
+
+    const handlePageHide = () => {
+      void markUserOffline(uid).catch(() => undefined);
+    };
+
+    const heartbeat = setInterval(publishOnline, PRESENCE_HEARTBEAT_MS);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [cloudUser?.uid]);
 
   // Subscribe to audio engine + unlock on first user interaction + dispose on unmount
   useEffect(() => {
@@ -866,6 +954,17 @@ export default function App() {
     showToast('Registro de impulso removido');
   }
 
+  function handleOpenImpulse() {
+    audioEngineRef.current?.playRocketLaunch();
+    if (impulseOpenTimerRef.current) {
+      clearTimeout(impulseOpenTimerRef.current);
+    }
+    impulseOpenTimerRef.current = setTimeout(() => {
+      impulseOpenTimerRef.current = null;
+      setImpulseModalOpen(true);
+    }, 220);
+  }
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="min-h-screen flex flex-col">
@@ -934,7 +1033,7 @@ export default function App() {
         totalXp={totalXp}
         xpNotice={xpNotice}
         profile={profile}
-        onOpenImpulse={() => setImpulseModalOpen(true)}
+        onOpenImpulse={handleOpenImpulse}
       />
 
       <AnimatePresence mode="wait" initial={false}>
@@ -1006,7 +1105,7 @@ export default function App() {
             <ImpulseHistoryView
               logs={impulseLogs}
               todayKey={currentTodayKey}
-              onTriggerImpulse={() => setImpulseModalOpen(true)}
+              onTriggerImpulse={handleOpenImpulse}
               onDeleteLog={handleDeleteImpulseLog}
             />
           )}
@@ -1021,6 +1120,7 @@ export default function App() {
               }
               vicesCount={vices.length}
               onSaveProfile={handleSaveProfile}
+              onNotify={showToast}
             />
           )}
         </motion.div>
@@ -1035,6 +1135,7 @@ export default function App() {
       />
 
       <Toast message={toastMsg} visible={toastVisible} />
+      <OfflineIndicator />
       </div>
     </MotionConfig>
   );

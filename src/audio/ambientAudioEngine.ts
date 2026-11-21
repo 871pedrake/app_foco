@@ -1428,6 +1428,102 @@ export class AmbientAudioEngine {
     });
   }
 
+  /** Som especial do botão foguete ("Impulso"): ignição + propulsão ascendente + brilho. */
+  public playRocketLaunch(): void {
+    if (!this.sfxEnabled || this.isDisposed) return;
+    const ctx = this.ensureContext(true);
+    if (!ctx || !this.masterGain || ctx.state !== 'running') return;
+
+    const now = ctx.currentTime;
+
+    // 1) Propulsão de ar/fogo com ruído filtrado subindo rápido
+    try {
+      const sampleRate = ctx.sampleRate || 44100;
+      const duration = 0.48;
+      const frameCount = Math.max(1, Math.floor(sampleRate * duration));
+      const noiseBuf = ctx.createBuffer(1, frameCount, sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < frameCount; i += 1) {
+        data[i] = this.rand() * 2 - 1;
+      }
+
+      const noiseSrc = ctx.createBufferSource();
+      noiseSrc.buffer = noiseBuf;
+
+      const bandpass = ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.frequency.setValueAtTime(240, now);
+      bandpass.frequency.exponentialRampToValueAtTime(2600, now + 0.34);
+      if (bandpass.Q) {
+        bandpass.Q.setValueAtTime(1.4, now);
+      }
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.0001, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.16, now + 0.05);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      noiseSrc.connect(bandpass);
+      bandpass.connect(noiseGain);
+      noiseGain.connect(this.masterGain);
+      noiseSrc.start(now);
+      noiseSrc.stop(now + duration + 0.02);
+    } catch {
+      // Ignora se createBuffer não estiver disponível em ambiente mínimo
+    }
+
+    // 2) Impulso grave de decolagem
+    const booster = ctx.createOscillator();
+    const boosterGain = ctx.createGain();
+    booster.type = 'triangle';
+    booster.frequency.setValueAtTime(95, now);
+    booster.frequency.exponentialRampToValueAtTime(240, now + 0.16);
+    booster.frequency.exponentialRampToValueAtTime(82, now + 0.36);
+
+    boosterGain.gain.setValueAtTime(0.0001, now);
+    boosterGain.gain.exponentialRampToValueAtTime(0.18, now + 0.03);
+    boosterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+
+    booster.connect(boosterGain);
+    boosterGain.connect(this.masterGain);
+    booster.start(now);
+    booster.stop(now + 0.4);
+
+    // 3) Subida harmônica ("decolando" / warp)
+    const sweep = ctx.createOscillator();
+    const sweepGain = ctx.createGain();
+    sweep.type = 'sine';
+    sweep.frequency.setValueAtTime(329.63, now + 0.02);
+    sweep.frequency.exponentialRampToValueAtTime(1046.5, now + 0.32);
+
+    sweepGain.gain.setValueAtTime(0.0001, now + 0.02);
+    sweepGain.gain.exponentialRampToValueAtTime(0.11, now + 0.08);
+    sweepGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.36);
+
+    sweep.connect(sweepGain);
+    sweepGain.connect(this.masterGain);
+    sweep.start(now + 0.02);
+    sweep.stop(now + 0.38);
+
+    // 4) Brilho final agudo
+    [987.77, 1318.51].forEach((freq, idx) => {
+      const startAt = now + 0.14 + idx * 0.065;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startAt);
+
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.075, startAt + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.24);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+      osc.start(startAt);
+      osc.stop(startAt + 0.26);
+    });
+  }
+
   public dispose(): void {
     this.isDisposed = true;
     this.stopSynthLoop(true);

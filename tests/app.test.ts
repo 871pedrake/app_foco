@@ -61,6 +61,21 @@ import {
   IMPULSE_CHALLENGES,
   pickRandomItemIndex,
 } from '../src/components/ImpulseModal';
+import {
+  ONLINE_STALE_WINDOW_MS,
+  buildPublicProfilePayload,
+  deriveFriendCode,
+  extractTimestampMs,
+  formatLastSeenPt,
+  isUserCurrentlyOnline,
+  isValidFriendCodeFormat,
+  makePairId,
+  normalizeFriendCode,
+  parsePublicProfileDoc,
+  sanitizeFriendPhotoUrl,
+  sortFriendsByPresence,
+} from '../src/cloud/friendsHelpers';
+import { detectPlatformFlags } from '../src/pwa/usePWAInstall';
 
 class MemoryStorage implements StorageLike {
   private map = new Map<string, string>();
@@ -269,8 +284,8 @@ test('AmbientAudioEngine starts 5-song random playback + background rain without
   const initial = engine.getSnapshot();
   assert.equal(initial.musicEnabled, true);
   assert.equal(initial.rainEnabled, true);
-  assert.ok(initial.currentSongIndex >= 0 && initial.currentSongIndex < 5);
-  assert.ok(initial.currentSoundscapeIndex >= 0 && initial.currentSoundscapeIndex < 6);
+  assert.ok(initial.currentSongIndex >= 0 && initial.currentSongIndex < RELAXING_SONGS.length);
+  assert.ok(initial.currentSoundscapeIndex >= 0 && initial.currentSoundscapeIndex < BACKGROUND_SOUNDSCAPES.length);
 
   engine.startIfEnabled();
   const runningSnap = engine.getSnapshot();
@@ -1659,4 +1674,182 @@ test('sanitizeProfile rejects SVG data URIs, javascript URLs, and oversized payl
   });
   assert.equal(validPng.photoDataUrl, 'data:image/png;base64,iVBORw0KGgo=');
 });
+
+test('engine plays distinct layered rocket launch sound only when sfx is enabled', () => {
+  const { MockAudioContext, stats } = createMockAudioEnvironment();
+  const engine = new AmbientAudioEngine({
+    AudioContextClass: MockAudioContext as unknown as typeof AudioContext,
+    storage: new MemoryStorage(),
+  });
+  engine.setMusicEnabled(false);
+  engine.setRainEnabled(false);
+  engine.unlock();
+
+  const beforeOsc = stats.startedOscillators;
+  engine.playRocketLaunch();
+  assert.ok(
+    stats.startedOscillators - beforeOsc >= 4,
+    'Rocket launch should synthesize layered booster, sweep, and chime oscillators'
+  );
+
+  engine.setSfxEnabled(false);
+  const mutedOsc = stats.startedOscillators;
+  engine.playRocketLaunch();
+  assert.equal(stats.startedOscillators, mutedOsc, 'Rocket launch stays silent when SFX is muted');
+  engine.dispose();
+});
+
+test('Friends system: friend codes, pair IDs, and photo URL sanitization enforce strict safety and symmetry', () => {
+  const codeA1 = deriveFriendCode('user_alpha_123');
+  const codeA2 = deriveFriendCode('user_alpha_123');
+  const codeB = deriveFriendCode('user_beta_456');
+
+  assert.equal(codeA1, codeA2);
+  assert.notEqual(codeA1, codeB);
+  assert.equal(isValidFriendCodeFormat(codeA1), true);
+  assert.equal(isValidFriendCodeFormat(codeB), true);
+
+  assert.equal(normalizeFriendCode(' ab-c 123_! '), 'ABC123');
+  assert.equal(isValidFriendCodeFormat(normalizeFriendCode('abc12')), false);
+  assert.equal(isValidFriendCodeFormat(normalizeFriendCode('ab-cd-1234')), true);
+
+  assert.equal(makePairId('uid_z', 'uid_a'), 'uid_a_uid_z');
+  assert.equal(makePairId('uid_a', 'uid_z'), 'uid_a_uid_z');
+  assert.throws(() => makePairId('same_uid', 'same_uid'));
+  assert.throws(() => makePairId('', 'uid_a'));
+
+  assert.equal(
+    sanitizeFriendPhotoUrl('https://lh3.googleusercontent.com/a/photo=s96-c'),
+    'https://lh3.googleusercontent.com/a/photo=s96-c'
+  );
+  assert.equal(
+    sanitizeFriendPhotoUrl('data:image/jpeg;base64,/9j/4AAQ'),
+    'data:image/jpeg;base64,/9j/4AAQ'
+  );
+  assert.equal(sanitizeFriendPhotoUrl('http://insecure.example.com/a.png'), '');
+  assert.equal(sanitizeFriendPhotoUrl('https://bad url with spaces.com/a.png'), '');
+  assert.equal(sanitizeFriendPhotoUrl('data:image/svg+xml;base64,PHN2Zz4='), '');
+  assert.equal(sanitizeFriendPhotoUrl('javascript:alert(1)'), '');
+});
+
+test('Friends presence: online window expiration, last-seen labels, XP level payload, and sorting work accurately', () => {
+  const now = 1_700_000_000_000;
+
+  const built = buildPublicProfilePayload({
+    uid: 'uid_tester_1',
+    displayName: '   ',
+    fallbackName: 'Maria Clara',
+    photoDataUrl: null,
+    fallbackPhotoUrl: 'https://example.com/avatar.jpg',
+    totalXp: 25,
+    isOnline: true,
+  });
+  assert.equal(built.displayName, 'Maria Clara');
+  assert.equal(built.photoDataUrl, 'https://example.com/avatar.jpg');
+  assert.equal(built.level >= 2, true);
+  assert.equal(built.totalXp, 25);
+  assert.equal(isValidFriendCodeFormat(built.friendCode), true);
+
+  // Negative/NaN XP clamps safely to 0 (Level 1)
+  const clamped = buildPublicProfilePayload({
+    uid: 'uid_tester_2',
+    displayName: '',
+    totalXp: -50,
+    isOnline: false,
+  });
+  assert.equal(clamped.displayName, 'Usuário Foco');
+  assert.equal(clamped.totalXp, 0);
+  assert.equal(clamped.level, 1);
+
+  // Presence freshness checks (120s stale window prevents ghost online badges)
+  assert.equal(
+    isUserCurrentlyOnline({ isOnline: true, lastSeenMs: now - 30_000 }, now),
+    true
+  );
+  assert.equal(
+    isUserCurrentlyOnline({ isOnline: true, lastSeenMs: now - ONLINE_STALE_WINDOW_MS - 1 }, now),
+    false
+  );
+  assert.equal(
+    isUserCurrentlyOnline({ isOnline: false, lastSeenMs: now - 5_000 }, now),
+    false
+  );
+
+  // Last seen formatting in Portuguese
+  assert.equal(
+    formatLastSeenPt({ isOnline: true, lastSeenMs: now - 20_000 }, now),
+    'Online agora'
+  );
+  assert.equal(
+    formatLastSeenPt({ isOnline: false, lastSeenMs: now - 60_000 }, now),
+    'Visto agora há pouco'
+  );
+  assert.equal(
+    formatLastSeenPt({ isOnline: false, lastSeenMs: now - 15 * 60_000 }, now),
+    'Visto há 15 min'
+  );
+  assert.equal(
+    formatLastSeenPt({ isOnline: false, lastSeenMs: now - 3 * 3_600_000 }, now),
+    'Visto há 3 h'
+  );
+  assert.equal(
+    formatLastSeenPt({ isOnline: false, lastSeenMs: now - 2 * 86_400_000 }, now),
+    'Visto há 2 d'
+  );
+  assert.equal(formatLastSeenPt({ isOnline: false, lastSeenMs: 0 }, now), 'Offline');
+
+  // Firestore Timestamp parsing & sorting online friends first
+  assert.equal(extractTimestampMs({ toMillis: () => 5000 }), 5000);
+  assert.equal(extractTimestampMs({ seconds: 10, nanoseconds: 500_000_000 }), 10500);
+
+  const onlineLowXp = parsePublicProfileDoc('u1', {
+    displayName: 'Bruno',
+    totalXp: 4,
+    level: 2,
+    levelTitle: 'Aprendiz',
+    isOnline: true,
+    lastSeenAt: now - 10_000,
+    updatedAt: now - 10_000,
+  });
+  const staleHighXp = parsePublicProfileDoc('u2', {
+    displayName: 'Ana',
+    totalXp: 200,
+    level: 14,
+    levelTitle: 'Mestre',
+    isOnline: true,
+    lastSeenAt: now - 500_000,
+    updatedAt: now - 500_000,
+  });
+  const offlineRecent = parsePublicProfileDoc('u3', {
+    displayName: 'Carlos',
+    totalXp: 30,
+    level: 6,
+    levelTitle: 'Disciplinado',
+    isOnline: false,
+    lastSeenAt: now - 60_000,
+    updatedAt: now - 60_000,
+  });
+
+  const sorted = sortFriendsByPresence([staleHighXp, offlineRecent, onlineLowXp], now);
+  assert.deepEqual(
+    sorted.map((f) => f.uid),
+    ['u1', 'u3', 'u2']
+  );
+});
+
+test('PWA platform detection accurately identifies Android, iOS, and desktop user agents', () => {
+  assert.deepEqual(
+    detectPlatformFlags('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/126.0.0.0 Mobile Safari/537.36'),
+    { isIOS: false, isAndroid: true }
+  );
+  assert.deepEqual(
+    detectPlatformFlags('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1'),
+    { isIOS: true, isAndroid: false }
+  );
+  assert.deepEqual(
+    detectPlatformFlags('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0 Safari/537.36'),
+    { isIOS: false, isAndroid: false }
+  );
+});
+
 

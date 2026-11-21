@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { auth } from './firebase';
 import { friendlyAuthError, GoogleIcon, validateSignupPassword } from './CloudGate';
+import { markUserOffline } from './friends';
 import { clearLocalDataAndStop, flushPending, syncWithCloud } from './sync';
 
 export function AccountSection() {
@@ -176,6 +177,9 @@ export function AccountSection() {
     setBusy('logout');
     try {
       await flushPending();
+      if (user?.uid) {
+        await markUserOffline(user.uid).catch(() => undefined);
+      }
       clearLocalDataAndStop();
       await signOut(auth);
     } finally {

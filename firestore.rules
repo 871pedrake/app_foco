@@ -33,6 +33,28 @@ service cloud.firestore {
       return !(key in m) || (m[key] is string && m[key].size() <= maxLen);
     }
 
+    function isValidFriendCode(code) {
+      return code is string && code.matches('^[A-Z0-9]{6,10}$');
+    }
+
+    function isValidPhotoUrl(url) {
+      return url is string && (
+        url == ''
+        || (url.size() <= 2048 && url.matches('^https://[!-~]+$'))
+        || (url.size() <= 250000 && url.matches('^data:image/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$'))
+      );
+    }
+
+    function friendPairId(uidA, uidB) {
+      return uidA < uidB ? uidA + '_' + uidB : uidB + '_' + uidA;
+    }
+
+    function hasFriendshipWith(userId) {
+      return isSignedIn()
+        && request.auth.uid != userId
+        && exists(/databases/$(database)/documents/friendships/$(friendPairId(request.auth.uid, userId)));
+    }
+
     // Validation blueprint for /users/{userId} backup document
     function isValidUserBackup(payload) {
       return payload.keys().hasAll(['data', 'clientUpdatedAt', 'serverUpdatedAt'])
@@ -79,6 +101,98 @@ service cloud.firestore {
         && isBoundedString(payload.data, 'foco_minimal_rain_vol_v1', 16);
     }
 
+    // Validation blueprint for /publicProfiles/{userId}
+    function isValidPublicProfile(userId, payload) {
+      return payload.keys().hasAll([
+          'uid',
+          'displayName',
+          'photoDataUrl',
+          'totalXp',
+          'level',
+          'levelTitle',
+          'friendCode',
+          'isOnline',
+          'lastSeenAt',
+          'updatedAt'
+        ])
+        && payload.keys().hasOnly([
+          'uid',
+          'displayName',
+          'photoDataUrl',
+          'totalXp',
+          'level',
+          'levelTitle',
+          'friendCode',
+          'isOnline',
+          'lastSeenAt',
+          'updatedAt'
+        ])
+        && payload.uid == userId
+        && payload.displayName is string
+        && payload.displayName.size() >= 1
+        && payload.displayName.size() <= 60
+        && isValidPhotoUrl(payload.photoDataUrl)
+        && payload.totalXp is number
+        && payload.totalXp >= 0
+        && payload.totalXp <= 100000000
+        && payload.level is int
+        && payload.level >= 1
+        && payload.level <= 15
+        && payload.levelTitle is string
+        && payload.levelTitle.size() >= 1
+        && payload.levelTitle.size() <= 60
+        && isValidFriendCode(payload.friendCode)
+        && payload.isOnline is bool
+        && payload.lastSeenAt == request.time
+        && payload.updatedAt == request.time;
+    }
+
+    // Validation blueprint for /friendCodes/{code}
+    function isValidFriendCodeDoc(payload) {
+      return payload.keys().hasAll(['uid', 'displayName', 'updatedAt'])
+        && payload.keys().hasOnly(['uid', 'displayName', 'updatedAt'])
+        && isValidId(payload.uid)
+        && payload.uid == request.auth.uid
+        && payload.displayName is string
+        && payload.displayName.size() >= 1
+        && payload.displayName.size() <= 60
+        && payload.updatedAt == request.time;
+    }
+
+    // Validation blueprint for /friendships/{pairId}
+    function isValidFriendshipCreate(pairId, payload) {
+      return payload.keys().hasAll([
+          'users',
+          'requesterUid',
+          'recipientUid',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && payload.keys().hasOnly([
+          'users',
+          'requesterUid',
+          'recipientUid',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && payload.users is list
+        && payload.users.size() == 2
+        && payload.users[0] is string
+        && payload.users[1] is string
+        && payload.users[0] < payload.users[1]
+        && pairId == payload.users[0] + '_' + payload.users[1]
+        && payload.requesterUid == request.auth.uid
+        && isValidId(payload.recipientUid)
+        && payload.recipientUid != payload.requesterUid
+        && payload.requesterUid in payload.users
+        && payload.recipientUid in payload.users
+        && payload.status == 'pending'
+        && payload.createdAt == request.time
+        && payload.updatedAt == request.time;
+    }
+
     match /users/{userId} {
       allow get: if isOwner(userId) && isValidId(userId);
       allow list: if false;
@@ -90,6 +204,65 @@ service cloud.firestore {
         && isValidUserBackup(incoming())
         && incoming().diff(existing()).affectedKeys().hasOnly(['data', 'clientUpdatedAt', 'serverUpdatedAt']);
       allow delete: if isOwner(userId) && isValidId(userId);
+    }
+
+    match /publicProfiles/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || hasFriendshipWith(userId));
+      allow list: if false;
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidPublicProfile(userId, incoming());
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidPublicProfile(userId, incoming())
+        && incoming().uid == existing().uid
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName',
+          'photoDataUrl',
+          'totalXp',
+          'level',
+          'levelTitle',
+          'friendCode',
+          'isOnline',
+          'lastSeenAt',
+          'updatedAt'
+        ]);
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+
+    match /friendCodes/{code} {
+      allow get: if isSignedIn() && isValidFriendCode(code);
+      allow list: if false;
+      allow create: if isSignedIn()
+        && isValidFriendCode(code)
+        && isValidFriendCodeDoc(incoming());
+      allow update: if isSignedIn()
+        && isValidFriendCode(code)
+        && existing().uid == request.auth.uid
+        && isValidFriendCodeDoc(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']);
+      allow delete: if isSignedIn()
+        && isValidFriendCode(code)
+        && existing().uid == request.auth.uid;
+    }
+
+    match /friendships/{pairId} {
+      allow list: if isSignedIn() && request.auth.uid in resource.data.users;
+      allow get: if isSignedIn() && isValidId(pairId) && request.auth.uid in existing().users;
+      allow create: if isSignedIn()
+        && isValidId(pairId)
+        && isValidFriendshipCreate(pairId, incoming())
+        && exists(/databases/$(database)/documents/publicProfiles/$(incoming().recipientUid));
+      allow update: if isSignedIn()
+        && isValidId(pairId)
+        && existing().status == 'pending'
+        && incoming().status == 'accepted'
+        && request.auth.uid == existing().recipientUid
+        && incoming().keys().hasAll(['users', 'requesterUid', 'recipientUid', 'status', 'createdAt', 'updatedAt'])
+        && incoming().keys().hasOnly(['users', 'requesterUid', 'recipientUid', 'status', 'createdAt', 'updatedAt'])
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && incoming().updatedAt == request.time;
+      allow delete: if isSignedIn() && isValidId(pairId) && request.auth.uid in existing().users;
     }
   }
 }

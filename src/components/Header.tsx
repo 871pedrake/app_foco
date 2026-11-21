@@ -28,6 +28,7 @@ import type {
   UserProfile,
 } from '../types/foco';
 import { formatXp } from '../utils/xp';
+import { PWAInstallButton } from './PWAInstallButton';
 
 export function formatNavbarXpNotice(notice: NavbarXpNotification): {
   deltaText: string;
@@ -118,8 +119,18 @@ export function Header({
   onOpenImpulse,
 }: HeaderProps) {
   const [mixerOpen, setMixerOpen] = useState(false);
+  const [rocketLaunching, setRocketLaunching] = useState(false);
   const mixerWrapperRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const rocketLaunchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (rocketLaunchTimerRef.current) {
+        clearTimeout(rocketLaunchTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!mixerOpen) return;
@@ -254,15 +265,68 @@ export function Header({
 
             <motion.button
               type="button"
-              onClick={onOpenImpulse}
+              data-no-click-sound="true"
+              onClick={() => {
+                setRocketLaunching(true);
+                if (rocketLaunchTimerRef.current) {
+                  clearTimeout(rocketLaunchTimerRef.current);
+                }
+                rocketLaunchTimerRef.current = setTimeout(() => {
+                  setRocketLaunching(false);
+                  rocketLaunchTimerRef.current = null;
+                }, 560);
+                onOpenImpulse();
+              }}
               whileHover={{ scale: 1.12, rotate: -8 }}
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.9 }}
+              animate={{ scale: rocketLaunching ? 1.16 : 1 }}
               transition={{ type: 'spring', stiffness: 420, damping: 22 }}
               aria-label="Impulso — frear vontade e sair da inércia"
               title="Impulso (foguete): clique se estiver pensando em alguma besteira"
-              className="relative w-10 h-10 -my-1.5 mx-1.5 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-600 text-white shadow-md shadow-orange-500/35 ring-2 ring-white/90 dark:ring-slate-950 flex items-center justify-center cursor-pointer shrink-0"
+              className="relative w-10 h-10 -my-1.5 mx-1.5 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-600 text-white shadow-md shadow-orange-500/35 ring-2 ring-white/90 dark:ring-slate-950 flex items-center justify-center cursor-pointer shrink-0 overflow-visible"
             >
-              <Rocket className="w-4 h-4 relative z-10" />
+              <AnimatePresence>
+                {rocketLaunching && (
+                  <motion.span
+                    key="rocket-shockwave"
+                    initial={{ scale: 0.85, opacity: 0.9 }}
+                    animate={{ scale: 2.35, opacity: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 rounded-full border-2 border-amber-300/90 bg-orange-400/25"
+                  />
+                )}
+                {rocketLaunching && (
+                  <motion.span
+                    key="rocket-glow"
+                    initial={{ scale: 0.9, opacity: 0.8 }}
+                    animate={{ scale: 1.5, opacity: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.45, ease: 'easeOut' }}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 rounded-full bg-amber-400/50 blur-sm"
+                  />
+                )}
+              </AnimatePresence>
+              <motion.span
+                aria-hidden="true"
+                animate={
+                  rocketLaunching
+                    ? {
+                        x: [0, -1.5, 1.5, 18, 0],
+                        y: [0, 1.5, -1.5, -20, 0],
+                        rotate: [0, -10, 8, 18, 0],
+                        scale: [1, 0.9, 1.25, 0.65, 1],
+                        opacity: [1, 1, 1, 0, 1],
+                      }
+                    : { x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 }
+                }
+                transition={{ duration: 0.54, times: [0, 0.14, 0.28, 0.62, 1], ease: 'easeOut' }}
+                className="relative z-10 inline-flex items-center justify-center"
+              >
+                <Rocket className="w-4 h-4" />
+              </motion.span>
             </motion.button>
 
             <button
@@ -652,6 +716,8 @@ export function Header({
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
             <span>{audioStatus.sfxEnabled ? 'Som: Ligado' : 'Som: Mudo'}</span>
           </button>
+
+          <PWAInstallButton compact />
 
           <motion.button
             type="button"

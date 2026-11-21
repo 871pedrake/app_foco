@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { CheckCircle2, Clock, Rocket, Trash2, Wind } from 'lucide-react';
 import type { ImpulseLog } from '../types/foco';
@@ -16,6 +17,17 @@ export function ImpulseHistoryView({
   onTriggerImpulse,
   onDeleteLog,
 }: ImpulseHistoryViewProps) {
+  const [launching, setLaunching] = useState(false);
+  const launchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (launchTimerRef.current) {
+        clearTimeout(launchTimerRef.current);
+      }
+    };
+  }, []);
+
   const todayKey = todayKeyProp || getLocalTodayKey();
   const todayCount = logs.filter((l) => l.dateKey === todayKey).length;
   const completedCount = logs.filter((l) => l.completedExercise).length;
@@ -36,12 +48,39 @@ export function ImpulseHistoryView({
 
           <motion.button
             type="button"
-            onClick={onTriggerImpulse}
+            data-no-click-sound="true"
+            onClick={() => {
+              setLaunching(true);
+              if (launchTimerRef.current) {
+                clearTimeout(launchTimerRef.current);
+              }
+              launchTimerRef.current = setTimeout(() => {
+                setLaunching(false);
+                launchTimerRef.current = null;
+              }, 520);
+              onTriggerImpulse();
+            }}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.96 }}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 hover:brightness-105 text-white shadow-md shadow-orange-500/25 transition-all cursor-pointer"
           >
-            <Rocket className="w-4 h-4" />
+            <motion.span
+              aria-hidden="true"
+              animate={
+                launching
+                  ? {
+                      x: [0, -1, 12, 0],
+                      y: [0, 1, -14, 0],
+                      rotate: [0, -8, 16, 0],
+                      scale: [1, 0.9, 1.2, 1],
+                    }
+                  : { x: 0, y: 0, rotate: 0, scale: 1 }
+              }
+              transition={{ duration: 0.48, ease: 'easeOut' }}
+              className="inline-flex items-center justify-center"
+            >
+              <Rocket className="w-4 h-4" />
+            </motion.span>
             <span>Acionar Impulso agora</span>
           </motion.button>
         </div>
