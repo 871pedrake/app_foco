@@ -1,0 +1,6 @@
+{
+  "name": "Foco",
+  "description": "Tarefas diárias, constância, diário e rastreamento de vícios com 5 músicas relaxantes aleatórias e som de chuva.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
