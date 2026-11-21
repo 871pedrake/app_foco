@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   CheckCircle2,
   Footprints,
@@ -324,8 +325,6 @@ export function ImpulseModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
 
-  if (!open) return null;
-
   function handleSaveThought(e: React.FormEvent) {
     e.preventDefault();
     const clean = thought.trim();
@@ -401,24 +400,41 @@ export function ImpulseModal({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="impulse-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-      <div className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#070c1b] text-slate-100 border border-orange-500/35 shadow-2xl shadow-orange-950/40 p-5 sm:p-7 space-y-5">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-600 text-white flex items-center justify-center shadow-lg shadow-orange-500/30 shrink-0">
-              <Rocket className="w-5 h-5" />
-            </div>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="impulse-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="impulse-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+            className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#070c1b] text-slate-100 border border-orange-500/35 shadow-2xl shadow-orange-950/40 p-5 sm:p-7 space-y-5"
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <motion.div
+                  animate={{ rotate: [0, -6, 6, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-600 text-white flex items-center justify-center shadow-lg shadow-orange-500/30 shrink-0"
+                >
+                  <Rocket className="w-5 h-5" />
+                </motion.div>
             <div>
               <h2 id="impulse-modal-title" className="text-lg sm:text-xl font-extrabold text-white">
                 Modo Impulso · Freio de Emergência
@@ -439,9 +455,18 @@ export function ImpulseModal({
           </button>
         </div>
 
+        <AnimatePresence mode="wait">
         {/* STEP 1: Ask what the user was about to do */}
         {step === 'write' && (
-          <form onSubmit={handleSaveThought} className="space-y-4">
+          <motion.form
+            key="step-write"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22 }}
+            onSubmit={handleSaveThought}
+            className="space-y-4"
+          >
             <div className="rounded-2xl bg-[#0b1228] border border-slate-800 p-4 space-y-3">
               <label
                 htmlFor="impulse-thought-input"
@@ -501,12 +526,19 @@ export function ImpulseModal({
                 </button>
               </div>
             </div>
-          </form>
+          </motion.form>
         )}
 
         {/* STEP 2: Randomly chosen Breathing Mode */}
         {step === 'breathing' && activeLog && (
-          <div className="space-y-4">
+          <motion.div
+            key="step-breathing"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22 }}
+            className="space-y-4"
+          >
             <div className="rounded-xl bg-emerald-950/35 border border-emerald-500/35 px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs">
               <span className="text-emerald-200 truncate">
                 Registrado às <strong className="font-mono">{activeLog.timeStr}</strong>: “{activeLog.thought}”
@@ -540,17 +572,38 @@ export function ImpulseModal({
 
               <div className="flex flex-col sm:flex-row items-center gap-5">
                 <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
-                  <div
-                    className={`w-28 h-28 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-1000 ${
+                  {breathingActive && (
+                    <motion.div
+                      animate={{
+                        scale:
+                          currentBreath.phase === 'inspire' || currentBreath.phase === 'hold'
+                            ? [1, 1.24, 1.15]
+                            : [1.05, 0.92, 1],
+                        opacity: [0.35, 0.12, 0.35],
+                      }}
+                      transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+                      className="absolute inset-1 rounded-full bg-sky-400/20 blur-sm pointer-events-none"
+                    />
+                  )}
+                  <motion.div
+                    animate={{
+                      scale: !breathingActive
+                        ? 0.95
+                        : currentBreath.phase === 'inspire' || currentBreath.phase === 'hold'
+                          ? 1.12
+                          : 0.88,
+                    }}
+                    transition={{ duration: 1.1, ease: 'easeInOut' }}
+                    className={`relative z-10 w-28 h-28 rounded-full border-2 flex flex-col items-center justify-center transition-colors duration-700 ${
                       !breathingActive
-                        ? 'scale-95 bg-sky-950/40 border-sky-500/40'
+                        ? 'bg-sky-950/40 border-sky-500/40'
                         : currentBreath.phase === 'inspire'
-                          ? 'scale-110 bg-sky-500/25 border-sky-400 shadow-lg shadow-sky-500/25'
+                          ? 'bg-sky-500/25 border-sky-400 shadow-lg shadow-sky-500/25'
                           : currentBreath.phase === 'hold'
-                            ? 'scale-110 bg-indigo-500/25 border-indigo-400 shadow-lg shadow-indigo-500/25'
+                            ? 'bg-indigo-500/25 border-indigo-400 shadow-lg shadow-indigo-500/25'
                             : currentBreath.phase === 'rest'
-                              ? 'scale-90 bg-slate-800/70 border-slate-500/70'
-                              : 'scale-90 bg-emerald-500/20 border-emerald-400/70'
+                              ? 'bg-slate-800/70 border-slate-500/70'
+                              : 'bg-emerald-500/20 border-emerald-400/70'
                     }`}
                   >
                     <span className="text-3xl font-black text-white tabular-nums">
@@ -559,7 +612,7 @@ export function ImpulseModal({
                     <span className="text-[11px] font-bold uppercase tracking-wider text-sky-200">
                       {currentBreath.shortLabel}
                     </span>
-                  </div>
+                  </motion.div>
                 </div>
 
                 <div className="flex-1 space-y-2.5 text-center sm:text-left">
@@ -587,12 +640,19 @@ export function ImpulseModal({
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* STEP 3: Ask if the user is in control */}
         {step === 'check-control' && activeLog && (
-          <div className="rounded-2xl bg-[#0b1228] border border-indigo-500/40 p-6 text-center space-y-5">
+          <motion.div
+            key="step-control"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22 }}
+            className="rounded-2xl bg-[#0b1228] border border-indigo-500/40 p-6 text-center space-y-5"
+          >
             <div className="w-12 h-12 rounded-full bg-indigo-500/20 border border-indigo-400/50 text-indigo-300 flex items-center justify-center mx-auto">
               <ShieldCheck className="w-6 h-6" />
             </div>
@@ -627,12 +687,19 @@ export function ImpulseModal({
                 <span>Não, me dê um 2º desafio aleatório</span>
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* STEP 4: 2nd Random Challenge (Escapatória) */}
         {step === 'challenge' && activeLog && (
-          <div className="space-y-4">
+          <motion.div
+            key="step-challenge"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.22 }}
+            className="space-y-4"
+          >
             <div className="rounded-2xl bg-[#0b1228] border border-orange-500/40 p-5 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -701,12 +768,19 @@ export function ImpulseModal({
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* STEP 5: Done */}
         {step === 'done' && (
-          <div className="rounded-2xl bg-[#0b1228] border border-emerald-500/40 p-6 text-center space-y-4">
+          <motion.div
+            key="step-done"
+            initial={{ opacity: 0, scale: 0.96, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 26 }}
+            className="rounded-2xl bg-[#0b1228] border border-emerald-500/40 p-6 text-center space-y-4"
+          >
             <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 flex items-center justify-center mx-auto">
               <Sparkles className="w-6 h-6" />
             </div>
@@ -737,9 +811,12 @@ export function ImpulseModal({
                 Voltar ao Foco
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
-      </div>
-    </div>
+        </AnimatePresence>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

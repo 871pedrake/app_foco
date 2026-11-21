@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from 'motion/react';
 import { CheckCircle2, Clock, Rocket, Trash2, Wind } from 'lucide-react';
 import type { ImpulseLog } from '../types/foco';
 import { formatFullPtDate, getLocalTodayKey } from '../utils/date';
@@ -33,19 +34,21 @@ export function ImpulseHistoryView({
             </h2>
           </div>
 
-          <button
+          <motion.button
             type="button"
             onClick={onTriggerImpulse}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.96 }}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 hover:brightness-105 text-white shadow-md shadow-orange-500/25 transition-all cursor-pointer"
           >
             <Rocket className="w-4 h-4" />
             <span>Acionar Impulso agora</span>
-          </button>
+          </motion.button>
         </div>
 
         {/* Summary KPI Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 p-4">
+          <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 p-4 transition-transform hover:-translate-y-0.5">
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Impulsos registrados
             </div>
@@ -54,7 +57,7 @@ export function ImpulseHistoryView({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 p-4">
+          <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 p-4 transition-transform hover:-translate-y-0.5">
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Freios hoje
             </div>
@@ -63,7 +66,7 @@ export function ImpulseHistoryView({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 p-4">
+          <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 p-4 transition-transform hover:-translate-y-0.5">
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Quebras de inércia concluídas
             </div>
@@ -90,11 +93,17 @@ export function ImpulseHistoryView({
           </div>
         ) : (
           <ul className="space-y-3">
-            {logs.map((log) => (
-              <li
-                key={log.id}
-                className="rounded-2xl bg-slate-50/90 dark:bg-slate-950/65 border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 space-y-2.5"
-              >
+            <AnimatePresence initial={false}>
+              {logs.map((log, idx) => (
+                <motion.li
+                  layout
+                  key={log.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -16, scale: 0.97 }}
+                  transition={{ duration: 0.22, delay: Math.min(idx * 0.03, 0.2) }}
+                  className="rounded-2xl bg-slate-50/90 dark:bg-slate-950/65 border border-slate-200/90 dark:border-slate-800 p-4 sm:p-5 space-y-2.5"
+                >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 capitalize">
                     <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
@@ -141,8 +150,9 @@ export function ImpulseHistoryView({
                     </span>
                   )}
                 </div>
-              </li>
-            ))}
+                </motion.li>
+              ))}
+            </AnimatePresence>
           </ul>
         )}
       </div>

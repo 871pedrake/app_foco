@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { ChevronDown, ChevronUp, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import {
   RELAPSE_ACTION_PLANS,
@@ -111,11 +112,16 @@ export function VicesView({
           </div>
         </div>
 
-        {showNewForm && (
-          <form
-            onSubmit={handleAddSubmit}
-            className="rounded-2xl bg-[#0c142b] border border-indigo-500/30 p-4 sm:p-5 space-y-3"
-          >
+        <AnimatePresence initial={false}>
+          {showNewForm && (
+            <motion.form
+              initial={{ opacity: 0, height: 0, y: -6 }}
+              animate={{ opacity: 1, height: 'auto', y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -6 }}
+              transition={{ duration: 0.24 }}
+              onSubmit={handleAddSubmit}
+              className="overflow-hidden rounded-2xl bg-[#0c142b] border border-indigo-500/30 p-4 sm:p-5 space-y-3"
+            >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-white">Novo vício para rastrear</h3>
               <button
@@ -153,12 +159,20 @@ export function VicesView({
                 Adicionar ao rastreamento
               </button>
             </div>
-          </form>
-        )}
+            </motion.form>
+          )}
+        </AnimatePresence>
 
         {/* Post-Relapse Reflection Card */}
-        {slipReflection && (
-          <div className="rounded-2xl bg-[#0b1228] border border-indigo-500/35 p-5 sm:p-6 space-y-4">
+        <AnimatePresence>
+          {slipReflection && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.22 }}
+              className="rounded-2xl bg-[#0b1228] border border-indigo-500/35 p-5 sm:p-6 space-y-4"
+            >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-white">Tropeço registrado</h3>
@@ -274,8 +288,9 @@ export function VicesView({
                 Salvar e concluir
               </button>
             </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Focused Vice Card */}
         {!focusedVice ? (
@@ -293,7 +308,13 @@ export function VicesView({
             const isConfirming = confirmingRelapseViceId === focusedVice.id;
 
             return (
-              <div className="rounded-2xl bg-[#0b1228] border border-indigo-900/70 p-5 sm:p-6 space-y-6">
+              <motion.div
+                key={focusedVice.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.24 }}
+                className="rounded-2xl bg-[#0b1228] border border-indigo-900/70 p-5 sm:p-6 space-y-6"
+              >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <span className="text-[11px] font-bold tracking-wider text-indigo-400">
@@ -520,21 +541,34 @@ export function VicesView({
                     )}
                   </button>
 
-                  {historyOpen && (
-                    <div className="space-y-2.5">
-                      {focusedVice.relapses.length === 0 ? (
-                        <p className="text-xs text-slate-400 py-2">
-                          Nenhuma recaída registrada neste vício ainda. Quando você registrar uma recaída e escrever um comentário, a data e o texto ficarão salvos aqui para você reler.
-                        </p>
-                      ) : (
-                        <ul className="space-y-2.5">
-                          {focusedVice.relapses.map((relapse) => {
-                            const isEditingThis = editingLogId === relapse.id;
-                            return (
-                              <li
-                                key={relapse.id}
-                                className="rounded-xl bg-[#070c1a] border border-slate-800/90 p-3.5 space-y-2"
-                              >
+                  <AnimatePresence initial={false}>
+                    {historyOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.22 }}
+                        className="overflow-hidden space-y-2.5"
+                      >
+                        {focusedVice.relapses.length === 0 ? (
+                          <p className="text-xs text-slate-400 py-2">
+                            Nenhuma recaída registrada neste vício ainda. Quando você registrar uma recaída e escrever um comentário, a data e o texto ficarão salvos aqui para você reler.
+                          </p>
+                        ) : (
+                          <ul className="space-y-2.5">
+                            <AnimatePresence initial={false}>
+                              {focusedVice.relapses.map((relapse) => {
+                                const isEditingThis = editingLogId === relapse.id;
+                                return (
+                                  <motion.li
+                                    layout
+                                    key={relapse.id}
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.96 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="rounded-xl bg-[#070c1a] border border-slate-800/90 p-3.5 space-y-2"
+                                  >
                                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                                   <div className="flex flex-wrap items-center gap-2 text-slate-200 font-semibold capitalize">
                                     <span>{formatFullPtDate(relapse.dateKey)}</span>
@@ -616,15 +650,17 @@ export function VicesView({
                                     Se acontecer de novo: {relapse.plan}
                                   </p>
                                 )}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                  )}
+                              </motion.li>
+                                );
+                              })}
+                            </AnimatePresence>
+                          </ul>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
+              </motion.div>
             );
           })()
         )}
@@ -641,15 +677,17 @@ export function VicesView({
                 const best = getViceBestDays(v, todayKey);
                 const rCount = v.relapses.length;
                 return (
-                  <button
+                  <motion.button
                     key={v.id}
                     type="button"
+                    whileHover={{ y: -3 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => {
                       setFocusedViceId(v.id);
                       setConfirmingRelapseViceId(null);
                       setEditingLogId(null);
                     }}
-                    className="text-left rounded-2xl bg-[#0b1228] hover:bg-[#0e1733] border border-slate-800/90 hover:border-indigo-500/40 p-4 transition-all cursor-pointer space-y-3"
+                    className="text-left rounded-2xl bg-[#0b1228] hover:bg-[#0e1733] border border-slate-800/90 hover:border-indigo-500/40 p-4 transition-colors cursor-pointer space-y-3"
                   >
                     <span className="text-xs font-bold text-slate-300 line-clamp-1 block">
                       {v.name}
@@ -667,7 +705,7 @@ export function VicesView({
                         {rCount} {rCount === 1 ? 'recaída' : 'recaídas'}
                       </span>
                     </div>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>

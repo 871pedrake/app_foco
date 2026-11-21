@@ -851,7 +851,7 @@ test('Repeated Simular Novo Dia preserves multi-day consecutive history, shifts 
   assert.equal(hydrated.tasks.length, 1);
   assert.equal(hydrated.totalXp, 7, 'Legacy task completions must migrate cleanly to totalXp');
   assert.deepEqual(hydrated.completionLogs, []);
-  assert.ok(hydrated.vices.length >= 2);
+  assert.deepEqual(hydrated.vices, []);
 });
 
 test('getLast7DaysXpSeries computes 7-day cumulative XP curve anchored to totalXp', () => {
@@ -1636,3 +1636,27 @@ test('engine plays xp-loss and click sound effects only when sfx is enabled', ()
   assert.equal(stats.startedOscillators, muted, 'No SFX when muted');
   engine.dispose();
 });
+
+test('sanitizeProfile rejects SVG data URIs, javascript URLs, and oversized payloads while keeping valid raster images', () => {
+  const svgPayload = sanitizeProfile({
+    name: 'Tester',
+    photoDataUrl: 'data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+PC9zdmc+',
+    updatedAt: 100,
+  });
+  assert.equal(svgPayload.photoDataUrl, null);
+
+  const jsPayload = sanitizeProfile({
+    name: 'Tester',
+    photoDataUrl: 'javascript:alert(1)',
+    updatedAt: 100,
+  });
+  assert.equal(jsPayload.photoDataUrl, null);
+
+  const validPng = sanitizeProfile({
+    name: 'Tester',
+    photoDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+    updatedAt: 100,
+  });
+  assert.equal(validPng.photoDataUrl, 'data:image/png;base64,iVBORw0KGgo=');
+});
+

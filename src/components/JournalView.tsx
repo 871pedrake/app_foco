@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Lock, Unlock } from 'lucide-react';
 import { JOURNAL_MOODS, type JournalEntry, type JournalMood } from '../types/foco';
 import { formatDateKey, formatFullPtDate, getLocalTodayKey, parseDateKey } from '../utils/date';
@@ -191,7 +192,12 @@ export function JournalView({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left: Calendar + Monthly Progress + 12 Months Grid */}
-          <div className="lg:col-span-5 rounded-2xl bg-[#0b1226] border border-slate-800/90 p-4 sm:p-5 space-y-5">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, ease: 'easeOut' }}
+            className="lg:col-span-5 rounded-2xl bg-[#0b1226] border border-slate-800/90 p-4 sm:p-5 space-y-5"
+          >
             <div className="flex items-center justify-between text-xs text-slate-400">
               <span className="font-semibold">Ano</span>
               <span className="font-mono tabular-nums text-slate-200 font-semibold">{viewYear}</span>
@@ -250,7 +256,7 @@ export function JournalView({
               {calendarMeta.days.map(({ day, key, written }) => {
                 const isSelected = key === selectedDateKey;
                 let cls =
-                  'h-8 rounded-lg text-xs tabular-nums transition-all cursor-pointer flex flex-col items-center justify-center relative ';
+                  'h-8 rounded-lg text-xs tabular-nums transition-all hover:scale-105 active:scale-95 cursor-pointer flex flex-col items-center justify-center relative ';
                 if (isSelected) {
                   cls += 'bg-indigo-600 text-white font-bold ring-2 ring-indigo-300/60';
                 } else if (written) {
@@ -326,10 +332,15 @@ export function JournalView({
                 })}
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Right: Daily Entry + Gratitude + Mood */}
-          <div className="lg:col-span-7 rounded-2xl bg-[#0b1226] border border-slate-800/90 p-5 sm:p-6 space-y-5">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, delay: 0.06, ease: 'easeOut' }}
+            className="lg:col-span-7 rounded-2xl bg-[#0b1226] border border-slate-800/90 p-5 sm:p-6 space-y-5"
+          >
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
               <div>
                 <p className="text-[11px] font-semibold tracking-wider text-indigo-400">
@@ -389,11 +400,19 @@ export function JournalView({
                 >
                   Descarrego e log
                 </label>
-                {isLocked && (
-                  <span className="text-[11px] font-medium text-amber-300/90">
-                    Somente leitura · clique no cadeado para editar
-                  </span>
-                )}
+                <AnimatePresence>
+                  {isLocked && (
+                    <motion.span
+                      initial={{ opacity: 0, x: 6 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 6 }}
+                      transition={{ duration: 0.18 }}
+                      className="text-[11px] font-medium text-amber-300/90"
+                    >
+                      Somente leitura · clique no cadeado para editar
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </div>
               <textarea
                 id="journal-dump-input"
@@ -522,41 +541,49 @@ export function JournalView({
                 </button>
               )}
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
       {/* Fixed right-corner padlock button */}
-      {showPadlockControl && (
-        <button
-          type="button"
-          onClick={handleTogglePadlock}
-          aria-pressed={!isLocked}
-          aria-label={
-            isLocked
-              ? 'Cadeado fechado: clique para desbloquear e editar o diário'
-              : 'Cadeado aberto: clique para salvar e travar o diário'
-          }
-          className={`fixed right-4 bottom-16 sm:right-6 sm:bottom-6 z-40 min-h-[44px] inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold border shadow-2xl backdrop-blur-md transition-all cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-            isLocked
-              ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-300 focus-visible:ring-amber-300'
-              : 'bg-slate-900/95 hover:bg-slate-800 text-emerald-300 border-emerald-500/50 focus-visible:ring-emerald-400'
-          }`}
-        >
-          {isLocked ? (
-            <Lock className="w-4 h-4 shrink-0" />
-          ) : (
-            <Unlock className="w-4 h-4 shrink-0" />
-          )}
-          <span>
-            {isLocked
-              ? 'Diário bloqueado · Editar'
-              : hasUnsavedChanges || !hasSavedContent
-                ? 'Salvar e travar diário'
-                : 'Travar diário'}
-          </span>
-        </button>
-      )}
+      <AnimatePresence>
+        {showPadlockControl && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 16, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.9 }}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 26 }}
+            onClick={handleTogglePadlock}
+            aria-pressed={!isLocked}
+            aria-label={
+              isLocked
+                ? 'Cadeado fechado: clique para desbloquear e editar o diário'
+                : 'Cadeado aberto: clique para salvar e travar o diário'
+            }
+            className={`fixed right-4 bottom-16 sm:right-6 sm:bottom-6 z-40 min-h-[44px] inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold border shadow-2xl backdrop-blur-md transition-colors cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+              isLocked
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-300 focus-visible:ring-amber-300'
+                : 'bg-slate-900/95 hover:bg-slate-800 text-emerald-300 border-emerald-500/50 focus-visible:ring-emerald-400'
+            }`}
+          >
+            {isLocked ? (
+              <Lock className="w-4 h-4 shrink-0" />
+            ) : (
+              <Unlock className="w-4 h-4 shrink-0" />
+            )}
+            <span>
+              {isLocked
+                ? 'Diário bloqueado · Editar'
+                : hasUnsavedChanges || !hasSavedContent
+                  ? 'Salvar e travar diário'
+                  : 'Travar diário'}
+            </span>
+          </motion.button>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

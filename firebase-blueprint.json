@@ -1,0 +1,31 @@
+{
+  "entities": {
+    "UserBackup": {
+      "title": "UserBackup",
+      "description": "Cloud backup of a user's Foco local state and modification timestamps.",
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "description": "Map of Foco storage keys to bounded JSON-serialized string values."
+        },
+        "clientUpdatedAt": {
+          "type": "number",
+          "description": "Epoch millisecond timestamp of the latest local modification."
+        },
+        "serverUpdatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server-assigned timestamp verified by Firestore security rules."
+        }
+      },
+      "required": ["data", "clientUpdatedAt", "serverUpdatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserBackup" },
+      "description": "Per-user Foco sync snapshot strictly owned by {userId}."
+    }
+  }
+}

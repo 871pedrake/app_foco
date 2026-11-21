@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Award, CheckCircle2, Lock, Sparkles, TrendingUp, Zap } from 'lucide-react';
 import {
   CartesianGrid,
@@ -134,7 +135,12 @@ export function LevelsView({
   return (
     <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
       {/* Top Hero Overview */}
-      <section className="rounded-2xl bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 p-5 sm:p-7 space-y-6">
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: 'easeOut' }}
+        className="rounded-2xl bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 p-5 sm:p-7 space-y-6"
+      >
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
@@ -168,9 +174,11 @@ export function LevelsView({
             </div>
 
             <div className="h-2.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-indigo-600 dark:bg-indigo-500 transition-all duration-300"
-                style={{ width: `${xpSummary.progressPercent}%` }}
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${xpSummary.progressPercent}%` }}
+                transition={{ type: 'spring', stiffness: 150, damping: 24 }}
+                className="h-full rounded-full bg-indigo-600 dark:bg-indigo-500"
               />
             </div>
 
@@ -290,10 +298,15 @@ export function LevelsView({
             </p>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* 7-Day Cumulative XP Line Chart (Recharts) */}
-      <section className="rounded-2xl bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 p-5 sm:p-6 space-y-4">
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, delay: 0.06, ease: 'easeOut' }}
+        className="rounded-2xl bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 p-5 sm:p-6 space-y-4"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -361,7 +374,7 @@ export function LevelsView({
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </section>
+      </motion.section>
 
       {/* Main 2-Column Content: Per-Skill XP + 15 Detailed Levels */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -437,9 +450,11 @@ export function LevelsView({
 
                     <div className="space-y-1">
                       <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-indigo-500 dark:bg-indigo-400 transition-all duration-300"
-                          style={{ width: `${skillTier.progressPercent}%` }}
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${skillTier.progressPercent}%` }}
+                          transition={{ type: 'spring', stiffness: 160, damping: 24 }}
+                          className="h-full rounded-full bg-indigo-500 dark:bg-indigo-400"
                         />
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
@@ -518,22 +533,28 @@ export function LevelsView({
             </div>
           ) : (
             <ol className="space-y-3">
-              {filteredLevels.map((lvl) => {
-                const isCurrent = lvl.level === xpSummary.currentLevel.level;
-                const isUnlocked = xpSummary.totalXp >= lvl.minXp;
-                const xpMissing = Math.max(0, lvl.minXp - xpSummary.totalXp);
+              <AnimatePresence initial={false}>
+                {filteredLevels.map((lvl, idx) => {
+                  const isCurrent = lvl.level === xpSummary.currentLevel.level;
+                  const isUnlocked = xpSummary.totalXp >= lvl.minXp;
+                  const xpMissing = Math.max(0, lvl.minXp - xpSummary.totalXp);
 
-                return (
-                  <li
-                    key={lvl.level}
-                    className={`rounded-xl border p-4 space-y-2.5 transition-colors ${
-                      isCurrent
-                        ? 'bg-indigo-50/70 dark:bg-indigo-950/35 border-indigo-400/70 dark:border-indigo-500/60'
-                        : isUnlocked
-                        ? 'bg-slate-50/80 dark:bg-slate-950/55 border-emerald-500/30 dark:border-emerald-500/25'
-                        : 'bg-slate-50/40 dark:bg-slate-950/30 border-slate-200/70 dark:border-slate-800/70 opacity-90'
-                    }`}
-                  >
+                  return (
+                    <motion.li
+                      layout
+                      key={lvl.level}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.97 }}
+                      transition={{ duration: 0.22, delay: Math.min(idx * 0.025, 0.2) }}
+                      className={`rounded-xl border p-4 space-y-2.5 transition-all hover:-translate-y-0.5 ${
+                        isCurrent
+                          ? 'bg-indigo-50/70 dark:bg-indigo-950/35 border-indigo-400/70 dark:border-indigo-500/60 shadow-xs'
+                          : isUnlocked
+                          ? 'bg-slate-50/80 dark:bg-slate-950/55 border-emerald-500/30 dark:border-emerald-500/25'
+                          : 'bg-slate-50/40 dark:bg-slate-950/30 border-slate-200/70 dark:border-slate-800/70 opacity-90'
+                      }`}
+                    >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span
@@ -593,9 +614,10 @@ export function LevelsView({
                       <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
                       <span>{lvl.milestoneTip}</span>
                     </div>
-                  </li>
+                  </motion.li>
                 );
               })}
+              </AnimatePresence>
             </ol>
           )}
         </section>

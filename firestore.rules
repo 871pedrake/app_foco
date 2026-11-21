@@ -1,8 +1,95 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable security primitives
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBoundedString(m, key, maxLen) {
+      return !(key in m) || (m[key] is string && m[key].size() <= maxLen);
+    }
+
+    // Validation blueprint for /users/{userId} backup document
+    function isValidUserBackup(payload) {
+      return payload.keys().hasAll(['data', 'clientUpdatedAt', 'serverUpdatedAt'])
+        && payload.keys().hasOnly(['data', 'clientUpdatedAt', 'serverUpdatedAt'])
+        && payload.clientUpdatedAt is number
+        && payload.clientUpdatedAt >= 0
+        && payload.clientUpdatedAt <= 4102444800000
+        && payload.serverUpdatedAt == request.time
+        && payload.data is map
+        && payload.data.size() <= 16
+        && payload.data.keys().hasOnly([
+          'foco_minimal_tasks_v1',
+          'foco_minimal_history_v1',
+          'foco_minimal_completion_logs_v1',
+          'foco_minimal_total_xp_v1',
+          'foco_minimal_xp_by_date_v1',
+          'foco_last_active_day_v1',
+          'foco_minimal_journal_v1',
+          'foco_minimal_vices_v1',
+          'foco_minimal_impulse_logs_v1',
+          'foco_minimal_profile_v1',
+          'foco_minimal_theme_v1',
+          'foco_minimal_sfx_v1',
+          'foco_minimal_bgm_v1',
+          'foco_minimal_rain_v1',
+          'foco_minimal_bgm_vol_v1',
+          'foco_minimal_rain_vol_v1'
+        ])
+        && isBoundedString(payload.data, 'foco_minimal_tasks_v1', 150000)
+        && isBoundedString(payload.data, 'foco_minimal_history_v1', 100000)
+        && isBoundedString(payload.data, 'foco_minimal_completion_logs_v1', 250000)
+        && isBoundedString(payload.data, 'foco_minimal_total_xp_v1', 32)
+        && isBoundedString(payload.data, 'foco_minimal_xp_by_date_v1', 100000)
+        && isBoundedString(payload.data, 'foco_last_active_day_v1', 32)
+        && isBoundedString(payload.data, 'foco_minimal_journal_v1', 300000)
+        && isBoundedString(payload.data, 'foco_minimal_vices_v1', 150000)
+        && isBoundedString(payload.data, 'foco_minimal_impulse_logs_v1', 150000)
+        && isBoundedString(payload.data, 'foco_minimal_profile_v1', 260000)
+        && isBoundedString(payload.data, 'foco_minimal_theme_v1', 16)
+        && isBoundedString(payload.data, 'foco_minimal_sfx_v1', 16)
+        && isBoundedString(payload.data, 'foco_minimal_bgm_v1', 16)
+        && isBoundedString(payload.data, 'foco_minimal_rain_v1', 16)
+        && isBoundedString(payload.data, 'foco_minimal_bgm_vol_v1', 16)
+        && isBoundedString(payload.data, 'foco_minimal_rain_vol_v1', 16);
+    }
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserBackup(incoming());
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserBackup(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['data', 'clientUpdatedAt', 'serverUpdatedAt']);
+      allow delete: if isOwner(userId) && isValidId(userId);
     }
   }
 }

@@ -67,6 +67,18 @@ export function writeJsonStorage(
   }
 }
 
+const SAFE_RASTER_IMAGE_DATA_URL_RE =
+  /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i;
+const MAX_PROFILE_PHOTO_URL_LENGTH = 240_000;
+
+export function isSafeRasterImageDataUrl(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value.length <= MAX_PROFILE_PHOTO_URL_LENGTH &&
+    SAFE_RASTER_IMAGE_DATA_URL_RE.test(value)
+  );
+}
+
 export function sanitizeProfile(raw: unknown): UserProfile {
   if (!raw || typeof raw !== 'object') {
     return { name: '', photoDataUrl: null, updatedAt: 0 };
@@ -74,7 +86,7 @@ export function sanitizeProfile(raw: unknown): UserProfile {
   const obj = raw as Record<string, unknown>;
   const name = typeof obj.name === 'string' ? obj.name.trim().slice(0, 60) : '';
   const rawPhoto = typeof obj.photoDataUrl === 'string' ? obj.photoDataUrl.trim() : '';
-  const photoDataUrl = rawPhoto.startsWith('data:image/') ? rawPhoto : null;
+  const photoDataUrl = isSafeRasterImageDataUrl(rawPhoto) ? rawPhoto : null;
   const updatedAt =
     typeof obj.updatedAt === 'number' && Number.isFinite(obj.updatedAt) ? obj.updatedAt : 0;
 
@@ -194,23 +206,8 @@ export function deleteImpulseEntry(params: {
   return params.logs.filter((log) => log.id !== params.logId);
 }
 
-export function createDefaultVices(todayKey: string = getLocalTodayKey()): Vice[] {
-  return [
-    {
-      id: generateId(),
-      name: 'Ver vídeo curto por mais de 10 minutos seguidos',
-      streakStartKey: shiftDateKey(todayKey, -14),
-      bestStreak: 14,
-      relapses: [],
-    },
-    {
-      id: generateId(),
-      name: 'Focar no lado ruim das coisas',
-      streakStartKey: shiftDateKey(todayKey, -7),
-      bestStreak: 21,
-      relapses: [],
-    },
-  ];
+export function createDefaultVices(_todayKey: string = getLocalTodayKey()): Vice[] {
+  return [];
 }
 
 export function syncHistoryForDate(
@@ -924,11 +921,34 @@ export function loadInitialFocoState(
 
   const rawVices = readJsonStorage<Vice[] | null>(STORAGE_KEYS.VICES, null, storage);
   let safeVices: Vice[];
-  if (Array.isArray(rawVices) && rawVices.length > 0) {
-    safeVices = rawVices.map((v) => ({
-      ...v,
-      relapses: Array.isArray(v.relapses) ? v.relapses : [],
-    }));
+  if (Array.isArray(rawVices)) {
+    const LEGACY_DEFAULT_VICE_NAMES = new Set([
+      'Ver vídeo curto por mais de 10 minutos seguidos',
+      'Focar no lado ruim das coisas',
+    ]);
+    const alreadyCleaned = storage?.getItem('foco_default_vices_cleaned_v1') === '1';
+    const isUntouchedLegacyDefaults =
+      !alreadyCleaned &&
+      rawVices.length === 2 &&
+      rawVices.every(
+        (v) =>
+          LEGACY_DEFAULT_VICE_NAMES.has(v?.name) &&
+          (!Array.isArray(v?.relapses) || v.relapses.length === 0),
+      );
+    if (isUntouchedLegacyDefaults) {
+      safeVices = [];
+      writeJsonStorage(STORAGE_KEYS.VICES, safeVices, storage);
+      try {
+        storage?.setItem('foco_default_vices_cleaned_v1', '1');
+      } catch {
+        // ignore storage errors
+      }
+    } else {
+      safeVices = rawVices.map((v) => ({
+        ...v,
+        relapses: Array.isArray(v.relapses) ? v.relapses : [],
+      }));
+    }
   } else {
     safeVices = createDefaultVices(todayKey);
     writeJsonStorage(STORAGE_KEYS.VICES, safeVices, storage);

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   CloudRain,
   Flame,
@@ -162,21 +163,28 @@ export function Header({
             <button
               type="button"
               onClick={() => onSelectTab('tasks')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'tasks'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  ? 'text-indigo-600 dark:text-indigo-400'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Tarefas &amp; Histórico
+              {activeTab === 'tasks' && (
+                <motion.span
+                  layoutId="header-active-tab"
+                  transition={{ type: 'spring', stiffness: 460, damping: 36 }}
+                  className="absolute inset-0 rounded-lg bg-white dark:bg-slate-800 shadow-xs"
+                />
+              )}
+              <span className="relative z-10">Tarefas &amp; Histórico</span>
             </button>
             <div className="relative flex items-center">
               <button
                 type="button"
                 onClick={() => onSelectTab('levels')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'levels'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                    ? 'text-indigo-600 dark:text-indigo-400'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 } ${
                   xpNotice
@@ -186,97 +194,143 @@ export function Header({
                     : ''
                 }`}
               >
-                Níveis &amp; XP
+                {activeTab === 'levels' && (
+                  <motion.span
+                    layoutId="header-active-tab"
+                    transition={{ type: 'spring', stiffness: 460, damping: 36 }}
+                    className="absolute inset-0 rounded-lg bg-white dark:bg-slate-800 shadow-xs"
+                  />
+                )}
+                <span className="relative z-10">Níveis &amp; XP</span>
               </button>
 
-              {xpNotice && (() => {
-                const { deltaText, detailText, isPositive } = formatNavbarXpNotice(xpNotice);
-                return (
-                  <div
-                    key={xpNotice.id}
-                    role="status"
-                    aria-live="polite"
-                    className={`animate-nav-xp-pop pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-lg whitespace-nowrap border ${
-                      isPositive
-                        ? 'bg-emerald-600 dark:bg-emerald-500 text-white border-emerald-400/60'
-                        : 'bg-rose-600 dark:bg-rose-500 text-white border-rose-400/60'
-                    }`}
-                  >
-                    <Zap className="w-3.5 h-3.5 shrink-0" />
-                    <span className="font-bold tabular-nums">{deltaText}</span>
-                    <span aria-hidden="true" className="opacity-75">·</span>
-                    <span>{detailText}</span>
-                    <span aria-hidden="true" className="opacity-75">·</span>
-                    <span className="tabular-nums opacity-95">Total {formatXp(totalXp)} XP</span>
-                  </div>
-                );
-              })()}
+              <AnimatePresence>
+                {xpNotice && (() => {
+                  const { deltaText, detailText, isPositive } = formatNavbarXpNotice(xpNotice);
+                  return (
+                    <motion.div
+                      key={xpNotice.id}
+                      initial={{ opacity: 0, y: -6, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.92 }}
+                      transition={{ type: 'spring', stiffness: 420, damping: 26 }}
+                      role="status"
+                      aria-live="polite"
+                      className={`pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-lg whitespace-nowrap border ${
+                        isPositive
+                          ? 'bg-emerald-600 dark:bg-emerald-500 text-white border-emerald-400/60'
+                          : 'bg-rose-600 dark:bg-rose-500 text-white border-rose-400/60'
+                      }`}
+                    >
+                      <Zap className="w-3.5 h-3.5 shrink-0" />
+                      <span className="font-bold tabular-nums">{deltaText}</span>
+                      <span aria-hidden="true" className="opacity-75">·</span>
+                      <span>{detailText}</span>
+                      <span aria-hidden="true" className="opacity-75">·</span>
+                      <span className="tabular-nums opacity-95">Total {formatXp(totalXp)} XP</span>
+                    </motion.div>
+                  );
+                })()}
+              </AnimatePresence>
             </div>
             <button
               type="button"
               onClick={() => onSelectTab('journal')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'journal'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  ? 'text-indigo-600 dark:text-indigo-400'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Seu Diário
+              {activeTab === 'journal' && (
+                <motion.span
+                  layoutId="header-active-tab"
+                  transition={{ type: 'spring', stiffness: 460, damping: 36 }}
+                  className="absolute inset-0 rounded-lg bg-white dark:bg-slate-800 shadow-xs"
+                />
+              )}
+              <span className="relative z-10">Seu Diário</span>
             </button>
 
-            <button
+            <motion.button
               type="button"
               onClick={onOpenImpulse}
+              whileHover={{ scale: 1.12, rotate: -8 }}
+              whileTap={{ scale: 0.92 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 22 }}
               aria-label="Impulso — frear vontade e sair da inércia"
               title="Impulso (foguete): clique se estiver pensando em alguma besteira"
-              className="w-10 h-10 -my-1.5 mx-1.5 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-600 text-white shadow-md shadow-orange-500/35 ring-2 ring-white/90 dark:ring-slate-950 hover:scale-110 active:scale-95 transition-transform flex items-center justify-center cursor-pointer shrink-0"
+              className="relative w-10 h-10 -my-1.5 mx-1.5 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-600 text-white shadow-md shadow-orange-500/35 ring-2 ring-white/90 dark:ring-slate-950 flex items-center justify-center cursor-pointer shrink-0"
             >
-              <Rocket className="w-4 h-4" />
-            </button>
+              <Rocket className="w-4 h-4 relative z-10" />
+            </motion.button>
 
             <button
               type="button"
               onClick={() => onSelectTab('vices')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'vices'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  ? 'text-indigo-600 dark:text-indigo-400'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Seus Vícios
+              {activeTab === 'vices' && (
+                <motion.span
+                  layoutId="header-active-tab"
+                  transition={{ type: 'spring', stiffness: 460, damping: 36 }}
+                  className="absolute inset-0 rounded-lg bg-white dark:bg-slate-800 shadow-xs"
+                />
+              )}
+              <span className="relative z-10">Seus Vícios</span>
             </button>
             <button
               type="button"
               onClick={() => onSelectTab('impulseHistory')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'impulseHistory'
-                  ? 'bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 shadow-xs'
+                  ? 'text-orange-600 dark:text-orange-400'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Histórico do Impulso
+              {activeTab === 'impulseHistory' && (
+                <motion.span
+                  layoutId="header-active-tab"
+                  transition={{ type: 'spring', stiffness: 460, damping: 36 }}
+                  className="absolute inset-0 rounded-lg bg-white dark:bg-slate-800 shadow-xs"
+                />
+              )}
+              <span className="relative z-10">Histórico do Impulso</span>
             </button>
             <button
               type="button"
               onClick={() => onSelectTab('profile')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'profile'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  ? 'text-indigo-600 dark:text-indigo-400'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              {profile.photoDataUrl ? (
-                <img
-                  src={profile.photoDataUrl}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  className="w-4 h-4 rounded-full object-cover shrink-0"
+              {activeTab === 'profile' && (
+                <motion.span
+                  layoutId="header-active-tab"
+                  transition={{ type: 'spring', stiffness: 460, damping: 36 }}
+                  className="absolute inset-0 rounded-lg bg-white dark:bg-slate-800 shadow-xs"
                 />
-              ) : (
-                <User className="w-3.5 h-3.5 shrink-0" />
               )}
-              <span className="max-w-[96px] truncate">
-                {profile.name ? profile.name : 'Perfil'}
+              <span className="relative z-10 inline-flex items-center gap-1.5">
+                {profile.photoDataUrl ? (
+                  <img
+                    src={profile.photoDataUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="w-4 h-4 rounded-full object-cover shrink-0"
+                  />
+                ) : (
+                  <User className="w-3.5 h-3.5 shrink-0" />
+                )}
+                <span className="max-w-[96px] truncate">
+                  {profile.name ? profile.name : 'Perfil'}
+                </span>
               </span>
             </button>
           </nav>
@@ -310,6 +364,13 @@ export function Header({
               }`}
             >
               <Music className="w-3.5 h-3.5 shrink-0" />
+              {audioStatus.musicEnabled && (
+                <span aria-hidden="true" className="inline-flex items-end gap-[2px] h-3 shrink-0">
+                  <span className="w-[2px] h-full rounded-full bg-current origin-bottom animate-eq-1" />
+                  <span className="w-[2px] h-full rounded-full bg-current origin-bottom animate-eq-2" />
+                  <span className="w-[2px] h-full rounded-full bg-current origin-bottom animate-eq-3" />
+                </span>
+              )}
               <span className="max-w-[125px] truncate">
                 {audioStatus.musicEnabled ? activeSongTitle : 'Música: Pausada'}
               </span>
@@ -361,12 +422,17 @@ export function Header({
               <SlidersHorizontal className="w-3.5 h-3.5" />
             </button>
 
-            {mixerOpen && (
-              <div
-                role="dialog"
-                aria-label="Mixer de Som Ambiente"
-                className="absolute right-0 top-full mt-2 w-80 sm:w-[420px] max-h-[82vh] overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 space-y-4 z-50"
-              >
+            <AnimatePresence>
+              {mixerOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+                  role="dialog"
+                  aria-label="Mixer de Som Ambiente"
+                  className="absolute right-0 top-full mt-2 w-80 sm:w-[420px] max-h-[82vh] overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 space-y-4 z-50 origin-top-right"
+                >
                 <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-2.5 gap-2">
                   <div>
                     <h2 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -567,8 +633,9 @@ export function Header({
                     </button>
                   )}
                 </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <button
@@ -586,15 +653,16 @@ export function Header({
             <span>{audioStatus.sfxEnabled ? 'Som: Ligado' : 'Som: Mudo'}</span>
           </button>
 
-          <button
+          <motion.button
             type="button"
             onClick={onToggleTheme}
+            whileTap={{ scale: 0.9, rotate: 18 }}
             aria-label="Alternar tema claro ou escuro"
             title="Alternar tema"
             className="p-2 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer shrink-0"
           >
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          </motion.button>
         </div>
       </div>
     </header>

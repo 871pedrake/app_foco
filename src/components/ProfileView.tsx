@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Camera, Check, Trash2, Upload, User } from 'lucide-react';
 import type { UserProfile } from '../types/foco';
-import { getProfileInitials } from '../utils/focoStorage';
+import { getProfileInitials, isSafeRasterImageDataUrl } from '../utils/focoStorage';
 import { formatXp, getLevelProgress } from '../utils/xp';
 import { AccountSection } from '../cloud/AccountSection';
 
@@ -101,16 +102,21 @@ export function ProfileView({
     if (!file) return;
     setPhotoError(null);
 
-    if (!file.type.startsWith('image/')) {
-      setPhotoError('Selecione um arquivo de imagem válido (JPG, PNG ou WEBP).');
+    const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']);
+    if (!ALLOWED_IMAGE_TYPES.has(file.type.toLowerCase())) {
+      setPhotoError('Selecione uma imagem PNG, JPG, WEBP ou GIF.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setPhotoError('A imagem deve ter no máximo 10 MB.');
       return;
     }
 
     setIsProcessingPhoto(true);
     try {
       const processedUrl = await processProfileImage(file);
-      if (!processedUrl.startsWith('data:image/')) {
-        setPhotoError('Não foi possível processar essa imagem.');
+      if (!isSafeRasterImageDataUrl(processedUrl)) {
+        setPhotoError('Não foi possível processar essa imagem com segurança.');
         return;
       }
       setImgBroken(false);
@@ -171,13 +177,20 @@ export function ProfileView({
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Live Profile Preview */}
-        <section
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: 'easeOut' }}
           aria-label="Pré-visualização do perfil"
           className="lg:col-span-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs p-6 space-y-6"
         >
           <div className="flex flex-col items-center text-center space-y-4">
             <div className="relative">
-              <div className="w-32 h-32 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-indigo-500/40 flex items-center justify-center shadow-sm">
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+                className="w-32 h-32 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-indigo-500/40 flex items-center justify-center shadow-sm"
+              >
                 {hasPhoto && photoDraft ? (
                   <img
                     src={photoDraft}
@@ -193,17 +206,19 @@ export function ProfileView({
                 ) : (
                   <User className="w-12 h-12 text-slate-400 dark:text-slate-500" />
                 )}
-              </div>
+              </motion.div>
 
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.92 }}
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Alterar foto do perfil"
                 title="Escolher foto do perfil"
                 className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white border-2 border-white dark:border-slate-900 shadow-md flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 <Camera className="w-4 h-4" />
-              </button>
+              </motion.button>
             </div>
 
             <div className="space-y-1 max-w-full">
@@ -248,10 +263,13 @@ export function ProfileView({
               </p>
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* Right: Edit Form */}
-        <section
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, delay: 0.06, ease: 'easeOut' }}
           aria-label="Editar foto e nome"
           className="lg:col-span-7 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs p-6"
         >
@@ -338,11 +356,19 @@ export function ProfileView({
                 </div>
               </div>
 
-              {photoError && (
-                <p role="alert" className="text-xs font-medium text-rose-600 dark:text-rose-400">
-                  {photoError}
-                </p>
-              )}
+              <AnimatePresence>
+                {photoError && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    role="alert"
+                    className="text-xs font-medium text-rose-600 dark:text-rose-400"
+                  >
+                    {photoError}
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Name field */}
@@ -385,7 +411,7 @@ export function ProfileView({
               </button>
             </div>
           </form>
-        </section>
+        </motion.section>
       </div>
 
       <AccountSection />

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Award,
   ChevronLeft,
@@ -346,8 +347,13 @@ export function TasksView({
     const isTimedAndPending = hasTimer && !task.completed;
 
     return (
-      <li
+      <motion.li
+        layout
         key={task.id}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, x: -16, scale: 0.96 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
         className={`group flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl border transition-colors ${
           isThisTimerActive
             ? 'bg-indigo-50/90 dark:bg-indigo-950/35 border-indigo-400/70 dark:border-indigo-500/60'
@@ -476,7 +482,7 @@ export function TasksView({
             <X className="w-4 h-4" />
           </button>
         </div>
-      </li>
+      </motion.li>
     );
   }
 
@@ -484,7 +490,12 @@ export function TasksView({
     <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN: Combo Diário + Tasks + XP ganho hoje */}
-        <section className="xl:col-span-4 space-y-5 bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5">
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: 'easeOut' }}
+          className="xl:col-span-4 space-y-5 bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5"
+        >
           {/* Combo Diário Bar */}
           <div className="rounded-xl bg-slate-50/90 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/80 p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-2 text-xs">
@@ -503,13 +514,15 @@ export function TasksView({
               </span>
             </div>
             <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
+              <motion.div
+                initial={false}
+                animate={{ width: `${dailyCombo.percent}%` }}
+                transition={{ type: 'spring', stiffness: 180, damping: 24 }}
+                className={`h-full rounded-full transition-colors ${
                   dailyCombo.isAllDailyDone
                     ? 'bg-emerald-500'
                     : 'bg-indigo-600 dark:bg-indigo-500'
                 }`}
-                style={{ width: `${dailyCombo.percent}%` }}
               />
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -560,8 +573,16 @@ export function TasksView({
               </div>
             </div>
 
-            {timerEnabled && (
-              <div className="rounded-xl bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/35 p-3 space-y-2.5">
+            <AnimatePresence initial={false}>
+              {timerEnabled && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, y: -4 }}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -4 }}
+                  transition={{ duration: 0.22 }}
+                  className="overflow-hidden"
+                >
+                  <div className="rounded-xl bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/35 p-3 space-y-2.5">
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="font-semibold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
@@ -604,8 +625,10 @@ export function TasksView({
                     <span className="text-[11px] text-slate-500 dark:text-slate-400">min</span>
                   </div>
                 </div>
-              </div>
-            )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="flex items-center justify-between gap-2 text-xs">
               <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200/70 dark:border-slate-800/80">
@@ -671,9 +694,11 @@ export function TasksView({
                     </div>
 
                     <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-indigo-600 dark:bg-indigo-500 transition-all duration-300"
-                        style={{ width: `${percent}%` }}
+                      <motion.div
+                        initial={false}
+                        animate={{ width: `${percent}%` }}
+                        transition={{ duration: 0.35, ease: 'easeOut' }}
+                        className="h-full rounded-full bg-indigo-600 dark:bg-indigo-500"
                       />
                     </div>
 
@@ -811,7 +836,11 @@ export function TasksView({
                   </h2>
                   <span className="text-[11px] text-slate-400 dark:text-slate-500">Ciclo de 24h</span>
                 </div>
-                <ul className="space-y-2">{dailyTasks.map(renderTaskRow)}</ul>
+                <ul className="space-y-2">
+                  <AnimatePresence initial={false}>
+                    {dailyTasks.map(renderTaskRow)}
+                  </AnimatePresence>
+                </ul>
               </section>
             )}
 
@@ -826,7 +855,11 @@ export function TasksView({
                   </h2>
                   <span className="text-[11px] text-slate-400 dark:text-slate-500">Sem repetição</span>
                 </div>
-                <ul className="space-y-2">{onceTasks.map(renderTaskRow)}</ul>
+                <ul className="space-y-2">
+                  <AnimatePresence initial={false}>
+                    {onceTasks.map(renderTaskRow)}
+                  </AnimatePresence>
+                </ul>
               </section>
             )}
 
@@ -897,9 +930,11 @@ export function TasksView({
                 </button>
               </div>
               <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-indigo-600 dark:bg-indigo-500 transition-all duration-300"
-                  style={{ width: `${xpSummary.progressPercent}%` }}
+                <motion.div
+                  initial={false}
+                  animate={{ width: `${xpSummary.progressPercent}%` }}
+                  transition={{ type: 'spring', stiffness: 180, damping: 24 }}
+                  className="h-full rounded-full bg-indigo-600 dark:bg-indigo-500"
                 />
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
@@ -914,10 +949,15 @@ export function TasksView({
               </p>
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* CENTER COLUMN: Monthly Consistency Calendar */}
-        <section className="xl:col-span-4 bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4">
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, delay: 0.05, ease: 'easeOut' }}
+          className="xl:col-span-4 bg-white dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4"
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -1003,7 +1043,7 @@ export function TasksView({
                   key={key}
                   type="button"
                   onClick={() => setSelectedDayKey(key)}
-                  className={`h-9 rounded-lg text-xs border transition-all cursor-pointer flex items-center justify-center tabular-nums ${colorClasses} ${ringClass}`}
+                  className={`h-9 rounded-lg text-xs border transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center tabular-nums ${colorClasses} ${ringClass}`}
                 >
                   {day}
                 </button>
@@ -1081,10 +1121,15 @@ export function TasksView({
               </ul>
             )}
           </div>
-        </section>
+        </motion.section>
 
         {/* RIGHT COLUMN: Analytics Sidebar */}
-        <aside className="xl:col-span-4 bg-[#0b1020] text-slate-100 border border-indigo-950/80 rounded-2xl p-4 sm:p-5 space-y-4 relative">
+        <motion.aside
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, delay: 0.1, ease: 'easeOut' }}
+          className="xl:col-span-4 bg-[#0b1020] text-slate-100 border border-indigo-950/80 rounded-2xl p-4 sm:p-5 space-y-4 relative"
+        >
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
@@ -1182,25 +1227,31 @@ export function TasksView({
               })}
             </div>
 
-            {tooltip && (
-              <div
-                style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}
-                className="fixed z-40 pointer-events-none max-w-[260px] rounded-xl bg-slate-900 text-white border border-indigo-500/40 shadow-xl px-3 py-2 text-xs space-y-1"
-              >
-                <div className="font-bold text-white tabular-nums">
-                  {tooltip.logs.length} {tooltip.logs.length === 1 ? 'tarefa' : 'tarefas'} em{' '}
-                  {formatShortPtDate(tooltip.dayKey)}
-                </div>
-                <div className="text-[11px] text-slate-300 leading-snug">
-                  {tooltip.logs.length > 0
-                    ? tooltip.logs
-                        .slice(0, 5)
-                        .map((l) => `${l.timeStr} — ${l.title}`)
-                        .join(' • ')
-                    : 'Nenhuma tarefa concluída'}
-                </div>
-              </div>
-            )}
+            <AnimatePresence>
+              {tooltip && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.94, y: 4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.94, y: 4 }}
+                  transition={{ duration: 0.14 }}
+                  style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}
+                  className="fixed z-40 pointer-events-none max-w-[260px] rounded-xl bg-slate-900 text-white border border-indigo-500/40 shadow-xl px-3 py-2 text-xs space-y-1"
+                >
+                  <div className="font-bold text-white tabular-nums">
+                    {tooltip.logs.length} {tooltip.logs.length === 1 ? 'tarefa' : 'tarefas'} em{' '}
+                    {formatShortPtDate(tooltip.dayKey)}
+                  </div>
+                  <div className="text-[11px] text-slate-300 leading-snug">
+                    {tooltip.logs.length > 0
+                      ? tooltip.logs
+                          .slice(0, 5)
+                          .map((l) => `${l.timeStr} — ${l.title}`)
+                          .join(' • ')
+                      : 'Nenhuma tarefa concluída'}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 pt-1">
@@ -1261,7 +1312,7 @@ export function TasksView({
               <span>Mais</span>
             </div>
           </div>
-        </aside>
+        </motion.aside>
       </div>
     </main>
   );

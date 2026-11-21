@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { AmbientAudioEngine } from './audio/ambientAudioEngine';
 import { Header } from './components/Header';
 import { ImpulseHistoryView } from './components/ImpulseHistoryView';
@@ -866,7 +867,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <MotionConfig reducedMotion="user">
+      <div className="min-h-screen flex flex-col">
       <Header
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -935,83 +937,94 @@ export default function App() {
         onOpenImpulse={() => setImpulseModalOpen(true)}
       />
 
-      {activeTab === 'tasks' && (
-        <TasksView
-          tasks={tasks}
-          historyByDate={historyByDate}
-          completionLogs={completionLogs}
-          totalXp={totalXp}
-          xpByDate={xpByDate}
-          todayKey={currentTodayKey}
-          activeTimer={activeTimer}
-          onAddTask={handleAddTask}
-          onToggleTask={handleToggleTask}
-          onUpdateTaskTitle={handleUpdateTaskTitle}
-          onDeleteTask={handleDeleteTask}
-          onClearCompleted={handleClearCompleted}
-          onOpenLevels={() => setActiveTab('levels')}
-          onStartTimer={handleStartTaskTimer}
-          onTogglePauseTimer={handleTogglePauseTaskTimer}
-          onResetTimer={handleResetTaskTimer}
-          onCancelTimer={handleCancelTaskTimer}
-        />
-      )}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="flex-1 flex flex-col"
+        >
+          {activeTab === 'tasks' && (
+            <TasksView
+              tasks={tasks}
+              historyByDate={historyByDate}
+              completionLogs={completionLogs}
+              totalXp={totalXp}
+              xpByDate={xpByDate}
+              todayKey={currentTodayKey}
+              activeTimer={activeTimer}
+              onAddTask={handleAddTask}
+              onToggleTask={handleToggleTask}
+              onUpdateTaskTitle={handleUpdateTaskTitle}
+              onDeleteTask={handleDeleteTask}
+              onClearCompleted={handleClearCompleted}
+              onOpenLevels={() => setActiveTab('levels')}
+              onStartTimer={handleStartTaskTimer}
+              onTogglePauseTimer={handleTogglePauseTaskTimer}
+              onResetTimer={handleResetTaskTimer}
+              onCancelTimer={handleCancelTaskTimer}
+            />
+          )}
 
-      {activeTab === 'levels' && (
-        <LevelsView
-          tasks={tasks}
-          completionLogs={completionLogs}
-          totalXp={totalXp}
-          xpByDate={xpByDate}
-          todayKey={currentTodayKey}
-          onGoToTasks={() => setActiveTab('tasks')}
-          onResetXp={handleResetXp}
-        />
-      )}
+          {activeTab === 'levels' && (
+            <LevelsView
+              tasks={tasks}
+              completionLogs={completionLogs}
+              totalXp={totalXp}
+              xpByDate={xpByDate}
+              todayKey={currentTodayKey}
+              onGoToTasks={() => setActiveTab('tasks')}
+              onResetXp={handleResetXp}
+            />
+          )}
 
-      {activeTab === 'journal' && (
-        <JournalView
-          entries={journalEntries}
-          todayKey={currentTodayKey}
-          onSaveEntry={handleSaveJournalEntry}
-          onClearEntry={handleClearJournalEntry}
-          onClose={() => setActiveTab('tasks')}
-        />
-      )}
+          {activeTab === 'journal' && (
+            <JournalView
+              entries={journalEntries}
+              todayKey={currentTodayKey}
+              onSaveEntry={handleSaveJournalEntry}
+              onClearEntry={handleClearJournalEntry}
+              onClose={() => setActiveTab('tasks')}
+            />
+          )}
 
-      {activeTab === 'vices' && (
-        <VicesView
-          vices={vices}
-          todayKey={currentTodayKey}
-          onAddVice={handleAddVice}
-          onDeleteVice={handleDeleteVice}
-          onRecordRelapse={handleRecordRelapse}
-          onSaveSlipReflection={handleSaveSlipReflection}
-          onUpdateRelapseComment={handleUpdateRelapseComment}
-        />
-      )}
+          {activeTab === 'vices' && (
+            <VicesView
+              vices={vices}
+              todayKey={currentTodayKey}
+              onAddVice={handleAddVice}
+              onDeleteVice={handleDeleteVice}
+              onRecordRelapse={handleRecordRelapse}
+              onSaveSlipReflection={handleSaveSlipReflection}
+              onUpdateRelapseComment={handleUpdateRelapseComment}
+            />
+          )}
 
-      {activeTab === 'impulseHistory' && (
-        <ImpulseHistoryView
-          logs={impulseLogs}
-          todayKey={currentTodayKey}
-          onTriggerImpulse={() => setImpulseModalOpen(true)}
-          onDeleteLog={handleDeleteImpulseLog}
-        />
-      )}
+          {activeTab === 'impulseHistory' && (
+            <ImpulseHistoryView
+              logs={impulseLogs}
+              todayKey={currentTodayKey}
+              onTriggerImpulse={() => setImpulseModalOpen(true)}
+              onDeleteLog={handleDeleteImpulseLog}
+            />
+          )}
 
-      {activeTab === 'profile' && (
-        <ProfileView
-          profile={profile}
-          totalXp={totalXp}
-          tasksCompletedCount={tasks.reduce((acc, t) => acc + t.completions, 0)}
-          journalDaysCount={
-            Object.values(journalEntries).filter((entry) => hasJournalContent(entry)).length
-          }
-          vicesCount={vices.length}
-          onSaveProfile={handleSaveProfile}
-        />
-      )}
+          {activeTab === 'profile' && (
+            <ProfileView
+              profile={profile}
+              totalXp={totalXp}
+              tasksCompletedCount={tasks.reduce((acc, t) => acc + t.completions, 0)}
+              journalDaysCount={
+                Object.values(journalEntries).filter((entry) => hasJournalContent(entry)).length
+              }
+              vicesCount={vices.length}
+              onSaveProfile={handleSaveProfile}
+            />
+          )}
+        </motion.div>
+      </AnimatePresence>
 
       <ImpulseModal
         open={impulseModalOpen}
@@ -1022,6 +1035,7 @@ export default function App() {
       />
 
       <Toast message={toastMsg} visible={toastVisible} />
-    </div>
+      </div>
+    </MotionConfig>
   );
 }
